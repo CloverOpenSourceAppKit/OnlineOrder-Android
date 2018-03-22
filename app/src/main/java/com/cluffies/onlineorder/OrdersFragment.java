@@ -1,4 +1,4 @@
-package com.cluffies.onlineorder.tabs;
+package com.cluffies.onlineorder;
 
 import android.content.Context;
 import android.os.Bundle;
@@ -10,32 +10,33 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import com.clover.sdk.v3.order.Order;
-import com.cluffies.onlineorder.R;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
- * A fragment representing a list of Orders received.
+ * A fragment representing a list of Orders.
  * <p/>
  * Activities containing this fragment MUST implement the {@link OnListFragmentInteractionListener}
  * interface.
  */
-public class OrdersReceivedFragment extends Fragment {
+public class OrdersFragment extends Fragment {
 
     private static final String ARG_ORDERS = "orders";
-    private List<Order> mOrders;
+    private LinkedHashMap<String, Order> mOrders;
+    private OrdersRecyclerViewAdapter ordersRecyclerViewAdapter;
     private OnListFragmentInteractionListener mListener;
 
     /**
      * Mandatory empty constructor for the fragment manager to instantiate the
      * fragment (e.g. upon screen orientation changes).
      */
-    public OrdersReceivedFragment() {
+    public OrdersFragment() {
     }
 
-    public static OrdersReceivedFragment newInstance(List<Order> orders) {
-        OrdersReceivedFragment fragment = new OrdersReceivedFragment();
+    public static OrdersFragment newInstance(List<Order> orders) {
+        OrdersFragment fragment = new OrdersFragment();
         Bundle args = new Bundle();
 
         args.putParcelableArrayList(ARG_ORDERS, (ArrayList<Order>) orders);
@@ -50,10 +51,10 @@ public class OrdersReceivedFragment extends Fragment {
         if (getArguments() != null) {
             ArrayList<Order> argOrders = getArguments().<Order>getParcelableArrayList(ARG_ORDERS);
 
-            mOrders = new ArrayList<Order>();
+            mOrders = new LinkedHashMap<String, Order>();
 
             for (Order order : argOrders) {
-                mOrders.add(new Order(order));
+                mOrders.put(order.getId(), new Order(order));
             }
         }
     }
@@ -61,7 +62,7 @@ public class OrdersReceivedFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_orders_received_list, container, false);
+        View view = inflater.inflate(R.layout.fragment_orders_list, container, false);
 
         // Set the adapter
         if (view instanceof RecyclerView) {
@@ -69,7 +70,10 @@ public class OrdersReceivedFragment extends Fragment {
 
             RecyclerView recyclerView = (RecyclerView) view;
             recyclerView.setLayoutManager(new LinearLayoutManager(context));
-            recyclerView.setAdapter(new OrdersReceivedRecyclerViewAdapter(mOrders, mListener));
+
+            ordersRecyclerViewAdapter = new OrdersRecyclerViewAdapter(new ArrayList<Order>(mOrders.values()), mListener);
+
+            recyclerView.setAdapter(ordersRecyclerViewAdapter);
         }
 
         return view;
@@ -93,6 +97,10 @@ public class OrdersReceivedFragment extends Fragment {
         mListener = null;
     }
 
+    public void addOrder(Order order) {
+        ordersRecyclerViewAdapter.addOrder(order);
+    }
+
     /**
      * This interface must be implemented by activities that contain this
      * fragment to allow an interaction in this fragment to be communicated
@@ -100,7 +108,7 @@ public class OrdersReceivedFragment extends Fragment {
      * activity.
      */
     public interface OnListFragmentInteractionListener {
-        void onOrderAccepted(Order order);
-        void onOrderRejected(Order order);
+        void onOrderClick(Order order);
+        void onOrderLongClick(Order order);
     }
 }

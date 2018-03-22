@@ -1,4 +1,4 @@
-package com.cluffies.onlineorder.tabs;
+package com.cluffies.onlineorder;
 
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -8,8 +8,7 @@ import android.widget.TextView;
 
 import com.clover.sdk.v3.order.LineItem;
 import com.clover.sdk.v3.order.Order;
-import com.cluffies.onlineorder.R;
-import com.cluffies.onlineorder.tabs.OrdersReceivedFragment.OnListFragmentInteractionListener;
+import com.cluffies.onlineorder.OrdersFragment.OnListFragmentInteractionListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,12 +18,12 @@ import java.util.ListIterator;
  * {@link RecyclerView.Adapter} that can display a {@link Order} and makes a call to the
  * specified {@link OnListFragmentInteractionListener}.
  */
-public class OrdersReceivedRecyclerViewAdapter extends RecyclerView.Adapter<OrdersReceivedRecyclerViewAdapter.ViewHolder> {
+public class OrdersRecyclerViewAdapter extends RecyclerView.Adapter<OrdersRecyclerViewAdapter.ViewHolder> {
 
     private List<Order> mOrders;
     private final OnListFragmentInteractionListener mListener;
 
-    public OrdersReceivedRecyclerViewAdapter(List<Order> orders, OnListFragmentInteractionListener listener) {
+    public OrdersRecyclerViewAdapter(List<Order> orders, OnListFragmentInteractionListener listener) {
         mOrders = new ArrayList<Order>();
 
         for (Order order : orders) {
@@ -32,18 +31,6 @@ public class OrdersReceivedRecyclerViewAdapter extends RecyclerView.Adapter<Orde
         }
 
         mListener = listener;
-    }
-
-    public void addOrder(Order order) {
-        int position = getItemCount();
-        mOrders.add(new Order(order));
-
-        notifyItemInserted(position);
-    }
-
-    public void removeOrderAtPosition(int position) {
-        mOrders.remove(position);
-        notifyItemRemoved(position);
     }
 
     @Override
@@ -78,7 +65,7 @@ public class OrdersReceivedRecyclerViewAdapter extends RecyclerView.Adapter<Orde
                 if (mListener != null) {
                     // Notify the active callbacks interface (the activity, if the
                     // fragment is attached to one) that an item has been selected.
-                    mListener.onOrderAccepted(holder.mOrder);
+                    mListener.onOrderClick(holder.mOrder);
                     removeOrderAtPosition(holder.getAdapterPosition());
                 }
             }
@@ -90,7 +77,7 @@ public class OrdersReceivedRecyclerViewAdapter extends RecyclerView.Adapter<Orde
                 if (mListener != null) {
                     // Notify the active callbacks interface (the activity, if the
                     // fragment is attached to one) that an item has been selected.
-                    mListener.onOrderRejected(holder.mOrder);
+                    mListener.onOrderLongClick(holder.mOrder);
                     removeOrderAtPosition(holder.getAdapterPosition());
                 }
 
@@ -102,6 +89,18 @@ public class OrdersReceivedRecyclerViewAdapter extends RecyclerView.Adapter<Orde
     @Override
     public int getItemCount() {
         return mOrders.size();
+    }
+
+    public void addOrder(Order order) {
+        int position = getItemCount();
+        mOrders.add(new Order(order));
+
+        notifyItemInserted(position);
+    }
+
+    public void removeOrderAtPosition(int position) {
+        mOrders.remove(position);
+        notifyItemRemoved(position);
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {

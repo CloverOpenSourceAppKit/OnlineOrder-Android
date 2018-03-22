@@ -12,22 +12,20 @@ import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 
 import android.widget.Toast;
 
 import com.clover.sdk.v3.order.LineItem;
 import com.clover.sdk.v3.order.Order;
-import com.cluffies.onlineorder.tabs.OrdersReceivedFragment;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements OrdersReceivedFragment.OnListFragmentInteractionListener {
+public class MainActivity extends AppCompatActivity implements OrdersFragment.OnListFragmentInteractionListener {
 
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
@@ -44,7 +42,15 @@ public class MainActivity extends AppCompatActivity implements OrdersReceivedFra
      */
     private ViewPager mViewPager;
 
-    private List<Order> mOrders;
+    private LinkedHashMap<String, Order> mReceivedOrders;
+    private LinkedHashMap<String, Order> mAcceptedOrders;
+    private LinkedHashMap<String, Order> mCompletedOrders;
+    private LinkedHashMap<String, Order> mRejectedOrders;
+
+    private OrdersFragment receivedOrdersFragment;
+    private OrdersFragment acceptedOrdersFragment;
+    private OrdersFragment completedOrdersFragment;
+    private OrdersFragment rejectedOrdersFragment;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,6 +66,7 @@ public class MainActivity extends AppCompatActivity implements OrdersReceivedFra
         // Set up the ViewPager with the sections adapter.
         mViewPager = (ViewPager) findViewById(R.id.container);
         mViewPager.setAdapter(mSectionsPagerAdapter);
+        mViewPager.setOffscreenPageLimit(4);
 
         TabLayout tabLayout = (TabLayout) findViewById(R.id.tabs);
 
@@ -74,8 +81,20 @@ public class MainActivity extends AppCompatActivity implements OrdersReceivedFra
                         .setAction("Action", null).show();
             }
         });
-    }
 
+        mReceivedOrders = new LinkedHashMap<String, Order>();
+        mReceivedOrders = generatePlaceholderOrders();
+
+        mAcceptedOrders = new LinkedHashMap<String, Order>();
+        mCompletedOrders = new LinkedHashMap<String, Order>();
+        mRejectedOrders = new LinkedHashMap<String, Order>();
+
+        receivedOrdersFragment = OrdersFragment.newInstance(new ArrayList<Order>(mReceivedOrders.values()));
+        acceptedOrdersFragment = OrdersFragment.newInstance(new ArrayList<Order>(mAcceptedOrders.values()));
+        completedOrdersFragment = OrdersFragment.newInstance(new ArrayList<Order>(mCompletedOrders.values()));
+        rejectedOrdersFragment = OrdersFragment.newInstance(new ArrayList<Order>(mRejectedOrders.values()));
+
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -100,23 +119,85 @@ public class MainActivity extends AppCompatActivity implements OrdersReceivedFra
     }
 
     @Override
-    public void onOrderAccepted(Order order) {
-        Log.d("ORDER_ACCEPTED", "Accepted Order: " + order.getId());
-        Toast.makeText(getBaseContext(), "Accepted Order: " + order.getId(), Toast.LENGTH_SHORT).show();
+    public void onOrderClick(Order order) {
+        if (mReceivedOrders.containsKey(order.getId())) {
+            Log.d("ORDER_ACCEPTED", "Accepted Order: " + order.getId());
+            Toast.makeText(getBaseContext(), "Accepted Order: " + order.getId(), Toast.LENGTH_SHORT).show();
+
+            mReceivedOrders.remove(order.getId());
+            mAcceptedOrders.put(order.getId(), new Order(order));
+            acceptedOrdersFragment.addOrder(order);
+        }
+
+        else if (mAcceptedOrders.containsKey(order.getId())) {
+            Log.d("ORDER_COMPLETED", "Completed Order: " + order.getId());
+            Toast.makeText(getBaseContext(), "Completed Order: " + order.getId(), Toast.LENGTH_SHORT).show();
+
+            mAcceptedOrders.remove(order.getId());
+            mCompletedOrders.put(order.getId(), new Order(order));
+            completedOrdersFragment.addOrder(order);
+        }
+
+        else if (mCompletedOrders.containsKey(order.getId())) {
+            Log.d("ORDER_UNDO_COMPLETED", "Undo Completed Order: " + order.getId());
+            Toast.makeText(getBaseContext(), "Undo Completed Order: " + order.getId(), Toast.LENGTH_SHORT).show();
+
+            mCompletedOrders.remove(order.getId());
+            mAcceptedOrders.put(order.getId(), new Order(order));
+            acceptedOrdersFragment.addOrder(order);
+        }
+
+        else if (mRejectedOrders.containsKey(order.getId())) {
+            Log.d("ORDER_UNDO_REJECTED", "Undo Rejected Order: " + order.getId());
+            Toast.makeText(getBaseContext(), "Undo Rejected Order: " + order.getId(), Toast.LENGTH_SHORT).show();
+
+            mRejectedOrders.remove(order.getId());
+            mReceivedOrders.put(order.getId(), new Order(order));
+            receivedOrdersFragment.addOrder(order);
+        }
     }
 
     @Override
-    public void onOrderRejected(Order order) {
-        Log.d("ORDER_REJECTED", "Rejected Order: " + order.getId());
-        Toast.makeText(getBaseContext(), "Rejected Order: " + order.getId(), Toast.LENGTH_SHORT).show();
+    public void onOrderLongClick(Order order) {
+        if (mReceivedOrders.containsKey(order.getId())) {
+            Log.d("ORDER_REJECTED", "Rejected Order: " + order.getId());
+            Toast.makeText(getBaseContext(), "Rejected Order: " + order.getId(), Toast.LENGTH_SHORT).show();
+
+            mReceivedOrders.remove(order.getId());
+            mRejectedOrders.put(order.getId(), new Order(order));
+            rejectedOrdersFragment.addOrder(order);
+        }
+
+        else if (mAcceptedOrders.containsKey(order.getId())) {
+            Log.d("ORDER_UNDO_ACCEPTED", "Undo Accepted Order: " + order.getId());
+            Toast.makeText(getBaseContext(), "Undo Accepted Order: " + order.getId(), Toast.LENGTH_SHORT).show();
+
+            mAcceptedOrders.remove(order.getId());
+            mReceivedOrders.put(order.getId(), new Order(order));
+            receivedOrdersFragment.addOrder(order);
+        }
+
+        else if (mCompletedOrders.containsKey(order.getId())) {
+            Log.d("COMPLETED_ORDER_DELETED", "Deleted Completed Order: " + order.getId());
+            Toast.makeText(getBaseContext(), "Deleted Completed Order: " + order.getId(), Toast.LENGTH_SHORT).show();
+
+            mCompletedOrders.remove(order.getId());
+        }
+
+        else if (mRejectedOrders.containsKey(order.getId())) {
+            Log.d("REJECTED_ORDER_DELETED", "Deleted Rejected Order: " + order.getId());
+            Toast.makeText(getBaseContext(), "Deleted Rejected Order: " + order.getId(), Toast.LENGTH_SHORT).show();
+
+            mRejectedOrders.remove(order.getId());
+        }
     }
 
     /**
      * Generates a list of placeholder orders.
      * TODO: REMOVE BEFORE RELEASE
      */
-    public List<Order> generatePlaceholderOrders() {
-        List<Order> orders = new ArrayList<>();
+    public LinkedHashMap<String, Order> generatePlaceholderOrders() {
+        LinkedHashMap<String, Order> orders = new LinkedHashMap<String, Order>();
         List<LineItem> lineItems = new ArrayList<LineItem>();
 
         Order order1 = new Order();
@@ -127,7 +208,7 @@ public class MainActivity extends AppCompatActivity implements OrdersReceivedFra
         lineItems.add(potato);
 
         order1.setLineItems(lineItems);
-        orders.add(order1);
+        orders.put(order1.getId(), order1);
 
         Order order2 = new Order();
         order2.setId("102R8PMJB3GSA");
@@ -137,7 +218,7 @@ public class MainActivity extends AppCompatActivity implements OrdersReceivedFra
         lineItems.add(tomato);
 
         order2.setLineItems(lineItems);
-        orders.add(order2);
+        orders.put(order2.getId(), order2);
 
         Order order3 = new Order();
         order3.setId("FKV22M33R00H0");
@@ -147,33 +228,9 @@ public class MainActivity extends AppCompatActivity implements OrdersReceivedFra
         lineItems.add(ricatto);
 
         order3.setLineItems(lineItems);
-        orders.add(order3);
-
-        // Generate more data to test vertical scrolling.
-        for (int i = 0; i < 3; i++) {
-            orders.add(order1);
-            orders.add(order2);
-            orders.add(order3);
-        }
+        orders.put(order3.getId(), order3);
 
         return orders;
-    }
-
-    /**
-     * A placeholder fragment containing a simple view.
-     * TODO: REMOVE BEFORE RELEASE
-     */
-    public static class PlaceholderFragment extends Fragment {
-        public PlaceholderFragment() {
-        }
-
-        @Override
-        public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                                 Bundle savedInstanceState) {
-            View rootView = inflater.inflate(R.layout.fragment_order_status, container, false);
-
-            return rootView;
-        }
     }
 
     /**
@@ -189,20 +246,27 @@ public class MainActivity extends AppCompatActivity implements OrdersReceivedFra
         @Override
         public Fragment getItem(int position) {
             // getItem is called to instantiate the fragment for the given page.
-            // Return a PlaceholderFragment (defined as a static inner class below).
-            if (position == 0) {
-                return OrdersReceivedFragment.newInstance(generatePlaceholderOrders());
-            }
+            // Return a OrdersFragment.
 
-            else {
-                return new PlaceholderFragment();
+            switch(position) {
+                case 0:
+                    return receivedOrdersFragment;
+                case 1:
+                    return acceptedOrdersFragment;
+                case 2:
+                    return completedOrdersFragment;
+                case 3:
+                    return rejectedOrdersFragment;
+                default:
+                    Log.e("INVALID_FRAGMENT", "Cannot find Fragment at position: " + position);
+                    return null;
             }
         }
 
         @Override
         public int getCount() {
-            // Show 3 total pages.
-            return 3;
+            // Show 4 total pages.
+            return 4;
         }
     }
 }
