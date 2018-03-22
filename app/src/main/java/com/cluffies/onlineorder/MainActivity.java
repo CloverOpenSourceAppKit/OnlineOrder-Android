@@ -246,7 +246,7 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.On
         @Override
         public Fragment getItem(int position) {
             // getItem is called to instantiate the fragment for the given page.
-            // Return a OrdersFragment.
+            // Returns an OrdersFragment.
 
             switch(position) {
                 case 0:
@@ -258,8 +258,8 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.On
                 case 3:
                     return rejectedOrdersFragment;
                 default:
-                    Log.e("INVALID_FRAGMENT", "Cannot find Fragment at position: " + position);
-                    return null;
+                    Log.e("INVALID_FRAGMENT", "Cannot find Fragment at position: " + position + ", defaulting to position 0.");
+                    return receivedOrdersFragment;
             }
         }
 

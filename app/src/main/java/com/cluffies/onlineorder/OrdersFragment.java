@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -98,6 +99,11 @@ public class OrdersFragment extends Fragment {
     }
 
     public void addOrder(Order order) {
+        if (order == null) {
+            Log.e("NULL_ORDER", "Cannot add a null order to " + getClass().getSimpleName());
+            return;
+        }
+
         ordersRecyclerViewAdapter.addOrder(order);
     }
 

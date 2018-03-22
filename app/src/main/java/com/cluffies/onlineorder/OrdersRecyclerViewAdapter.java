@@ -1,6 +1,7 @@
 package com.cluffies.onlineorder;
 
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -92,6 +93,11 @@ public class OrdersRecyclerViewAdapter extends RecyclerView.Adapter<OrdersRecycl
     }
 
     public void addOrder(Order order) {
+        if (order == null) {
+            Log.e("NULL_ORDER", "Cannot add a null order to this " + getClass().getSimpleName());
+            return;
+        }
+
         int position = getItemCount();
         mOrders.add(new Order(order));
 
@@ -99,6 +105,11 @@ public class OrdersRecyclerViewAdapter extends RecyclerView.Adapter<OrdersRecycl
     }
 
     public void removeOrderAtPosition(int position) {
+        if (position >= getItemCount()) {
+            Log.e("POSITION_OUT_OF_BOUNDS", "No order at position " + position + "; it is out of bounds.");
+            return;
+        }
+
         mOrders.remove(position);
         notifyItemRemoved(position);
     }
