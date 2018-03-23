@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,7 +18,7 @@ import java.util.List;
 /**
  * A fragment representing a list of Orders.
  * <p/>
- * Activities containing this fragment MUST implement the {@link OnListFragmentInteractionListener}
+ * Activities containing this fragment MUST implement the {@link OrderFragmentListener}
  * interface.
  */
 public class OrdersFragment extends Fragment {
@@ -27,7 +26,7 @@ public class OrdersFragment extends Fragment {
     private static final String ARG_ORDERS = "orders";
     private LinkedHashMap<String, Order> mOrders;
     private OrdersRecyclerViewAdapter ordersRecyclerViewAdapter;
-    private OnListFragmentInteractionListener mListener;
+    private OrderFragmentListener mListener;
 
     /**
      * Mandatory empty constructor for the fragment manager to instantiate the
@@ -84,11 +83,11 @@ public class OrdersFragment extends Fragment {
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
-        if (context instanceof OnListFragmentInteractionListener) {
-            mListener = (OnListFragmentInteractionListener) context;
+        if (context instanceof OrderFragmentListener) {
+            mListener = (OrderFragmentListener) context;
         } else {
             throw new RuntimeException(context.toString()
-                    + " must implement OnListFragmentInteractionListener");
+                    + " must implement OrderFragmentListener");
         }
     }
 
@@ -99,12 +98,9 @@ public class OrdersFragment extends Fragment {
     }
 
     public void addOrder(Order order) {
-        if (order == null) {
-            Log.e("NULL_ORDER", "Cannot add a null order to " + getClass().getSimpleName());
-            return;
+        if (order != null) {
+            ordersRecyclerViewAdapter.addOrder(order);
         }
-
-        ordersRecyclerViewAdapter.addOrder(order);
     }
 
     /**
@@ -113,7 +109,7 @@ public class OrdersFragment extends Fragment {
      * to the activity and potentially other fragments contained in that
      * activity.
      */
-    public interface OnListFragmentInteractionListener {
+    public interface OrderFragmentListener {
         void onOrderClick(Order order);
         void onOrderLongClick(Order order);
     }

@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements OrdersFragment.OnListFragmentInteractionListener {
+public class MainActivity extends AppCompatActivity implements OrdersFragment.OrderFragmentListener {
 
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
@@ -47,10 +47,12 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.On
     private LinkedHashMap<String, Order> mCompletedOrders;
     private LinkedHashMap<String, Order> mRejectedOrders;
 
-    private OrdersFragment receivedOrdersFragment;
-    private OrdersFragment acceptedOrdersFragment;
-    private OrdersFragment completedOrdersFragment;
-    private OrdersFragment rejectedOrdersFragment;
+    private OrdersFragment mReceivedOrdersFragment;
+    private OrdersFragment mAcceptedOrdersFragment;
+    private OrdersFragment mCompletedOrdersFragment;
+    private OrdersFragment mRejectedOrdersFragment;
+
+    private OrderReceiver mOrderReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,7 +61,7 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.On
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        // Create the adapter that will return a fragment for each of the three
+        // Create the adapter that will return a fragment for each of the four
         // primary sections of the activity.
         mSectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager());
 
@@ -73,6 +75,7 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.On
         mViewPager.addOnPageChangeListener(new TabLayout.TabLayoutOnPageChangeListener(tabLayout));
         tabLayout.addOnTabSelectedListener(new TabLayout.ViewPagerOnTabSelectedListener(mViewPager));
 
+        // TODO: REMOVE OR IMPLEMENT BEFORE RELEASE
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -83,19 +86,38 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.On
         });
 
         mReceivedOrders = new LinkedHashMap<String, Order>();
-        mReceivedOrders = generatePlaceholderOrders();
-
         mAcceptedOrders = new LinkedHashMap<String, Order>();
         mCompletedOrders = new LinkedHashMap<String, Order>();
         mRejectedOrders = new LinkedHashMap<String, Order>();
 
-        receivedOrdersFragment = OrdersFragment.newInstance(new ArrayList<Order>(mReceivedOrders.values()));
-        acceptedOrdersFragment = OrdersFragment.newInstance(new ArrayList<Order>(mAcceptedOrders.values()));
-        completedOrdersFragment = OrdersFragment.newInstance(new ArrayList<Order>(mCompletedOrders.values()));
-        rejectedOrdersFragment = OrdersFragment.newInstance(new ArrayList<Order>(mRejectedOrders.values()));
+        mReceivedOrdersFragment = OrdersFragment.newInstance(new ArrayList<Order>(mReceivedOrders.values()));
+        mAcceptedOrdersFragment = OrdersFragment.newInstance(new ArrayList<Order>(mAcceptedOrders.values()));
+        mCompletedOrdersFragment = OrdersFragment.newInstance(new ArrayList<Order>(mCompletedOrders.values()));
+        mRejectedOrdersFragment = OrdersFragment.newInstance(new ArrayList<Order>(mRejectedOrders.values()));
 
+        mOrderReceiver = new OrderReceiver(this, new OrderReceiver.OrderReceiverListener() {
+            @Override
+            public void onOrderReceive(Order order) {
+                if (order != null) {
+                    Snackbar.make(findViewById(R.id.main_content), "Online Order Received: " + order.getId(), Snackbar.LENGTH_SHORT).show();
+
+                    mReceivedOrders.put(order.getId(), order);
+                    mReceivedOrdersFragment.addOrder(order);
+                }
+            }
+        });
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+
+        mOrderReceiver.unregister();
+    }
+
+    /**
+     * TODO: REMOVE OR IMPLEMENT BEFORE RELEASE
+     */
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -103,6 +125,9 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.On
         return true;
     }
 
+    /**
+     * TODO: REMOVE OR IMPLEMENT BEFORE RELEASE
+     */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here. The action bar will
@@ -126,7 +151,7 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.On
 
             mReceivedOrders.remove(order.getId());
             mAcceptedOrders.put(order.getId(), new Order(order));
-            acceptedOrdersFragment.addOrder(order);
+            mAcceptedOrdersFragment.addOrder(order);
         }
 
         else if (mAcceptedOrders.containsKey(order.getId())) {
@@ -135,7 +160,7 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.On
 
             mAcceptedOrders.remove(order.getId());
             mCompletedOrders.put(order.getId(), new Order(order));
-            completedOrdersFragment.addOrder(order);
+            mCompletedOrdersFragment.addOrder(order);
         }
 
         else if (mCompletedOrders.containsKey(order.getId())) {
@@ -144,7 +169,7 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.On
 
             mCompletedOrders.remove(order.getId());
             mAcceptedOrders.put(order.getId(), new Order(order));
-            acceptedOrdersFragment.addOrder(order);
+            mAcceptedOrdersFragment.addOrder(order);
         }
 
         else if (mRejectedOrders.containsKey(order.getId())) {
@@ -153,7 +178,7 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.On
 
             mRejectedOrders.remove(order.getId());
             mReceivedOrders.put(order.getId(), new Order(order));
-            receivedOrdersFragment.addOrder(order);
+            mReceivedOrdersFragment.addOrder(order);
         }
     }
 
@@ -165,7 +190,7 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.On
 
             mReceivedOrders.remove(order.getId());
             mRejectedOrders.put(order.getId(), new Order(order));
-            rejectedOrdersFragment.addOrder(order);
+            mRejectedOrdersFragment.addOrder(order);
         }
 
         else if (mAcceptedOrders.containsKey(order.getId())) {
@@ -174,7 +199,7 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.On
 
             mAcceptedOrders.remove(order.getId());
             mReceivedOrders.put(order.getId(), new Order(order));
-            receivedOrdersFragment.addOrder(order);
+            mReceivedOrdersFragment.addOrder(order);
         }
 
         else if (mCompletedOrders.containsKey(order.getId())) {
@@ -190,47 +215,6 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.On
 
             mRejectedOrders.remove(order.getId());
         }
-    }
-
-    /**
-     * Generates a list of placeholder orders.
-     * TODO: REMOVE BEFORE RELEASE
-     */
-    public LinkedHashMap<String, Order> generatePlaceholderOrders() {
-        LinkedHashMap<String, Order> orders = new LinkedHashMap<String, Order>();
-        List<LineItem> lineItems = new ArrayList<LineItem>();
-
-        Order order1 = new Order();
-        order1.setId("ANEGC14WQSTFR");
-        LineItem potato = new LineItem();
-        potato.setName("potato");
-        potato.setPrice((long)50);
-        lineItems.add(potato);
-
-        order1.setLineItems(lineItems);
-        orders.put(order1.getId(), order1);
-
-        Order order2 = new Order();
-        order2.setId("102R8PMJB3GSA");
-        LineItem tomato = new LineItem();
-        tomato.setName("tomato");
-        tomato.setPrice((long)100);
-        lineItems.add(tomato);
-
-        order2.setLineItems(lineItems);
-        orders.put(order2.getId(), order2);
-
-        Order order3 = new Order();
-        order3.setId("FKV22M33R00H0");
-        LineItem ricatto = new LineItem();
-        ricatto.setName("ricatto");
-        ricatto.setPrice((long)200);
-        lineItems.add(ricatto);
-
-        order3.setLineItems(lineItems);
-        orders.put(order3.getId(), order3);
-
-        return orders;
     }
 
     /**
@@ -250,16 +234,15 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.On
 
             switch(position) {
                 case 0:
-                    return receivedOrdersFragment;
+                    return mReceivedOrdersFragment;
                 case 1:
-                    return acceptedOrdersFragment;
+                    return mAcceptedOrdersFragment;
                 case 2:
-                    return completedOrdersFragment;
+                    return mCompletedOrdersFragment;
                 case 3:
-                    return rejectedOrdersFragment;
+                    return mRejectedOrdersFragment;
                 default:
-                    Log.e("INVALID_FRAGMENT", "Cannot find Fragment at position: " + position + ", defaulting to position 0.");
-                    return receivedOrdersFragment;
+                    return mReceivedOrdersFragment;
             }
         }
 

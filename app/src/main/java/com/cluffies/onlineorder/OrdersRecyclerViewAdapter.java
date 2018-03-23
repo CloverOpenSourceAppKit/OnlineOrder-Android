@@ -1,7 +1,6 @@
 package com.cluffies.onlineorder;
 
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -9,7 +8,7 @@ import android.widget.TextView;
 
 import com.clover.sdk.v3.order.LineItem;
 import com.clover.sdk.v3.order.Order;
-import com.cluffies.onlineorder.OrdersFragment.OnListFragmentInteractionListener;
+import com.cluffies.onlineorder.OrdersFragment.OrderFragmentListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,14 +16,14 @@ import java.util.ListIterator;
 
 /**
  * {@link RecyclerView.Adapter} that can display a {@link Order} and makes a call to the
- * specified {@link OnListFragmentInteractionListener}.
+ * specified {@link OrdersFragment.OrderFragmentListener}.
  */
 public class OrdersRecyclerViewAdapter extends RecyclerView.Adapter<OrdersRecyclerViewAdapter.ViewHolder> {
 
     private List<Order> mOrders;
-    private final OnListFragmentInteractionListener mListener;
+    private final OrderFragmentListener mListener;
 
-    public OrdersRecyclerViewAdapter(List<Order> orders, OnListFragmentInteractionListener listener) {
+    public OrdersRecyclerViewAdapter(List<Order> orders, OrderFragmentListener listener) {
         mOrders = new ArrayList<Order>();
 
         for (Order order : orders) {
@@ -93,25 +92,19 @@ public class OrdersRecyclerViewAdapter extends RecyclerView.Adapter<OrdersRecycl
     }
 
     public void addOrder(Order order) {
-        if (order == null) {
-            Log.e("NULL_ORDER", "Cannot add a null order to this " + getClass().getSimpleName());
-            return;
+        if (order != null) {
+            int position = getItemCount();
+            mOrders.add(new Order(order));
+
+            notifyItemInserted(position);
         }
-
-        int position = getItemCount();
-        mOrders.add(new Order(order));
-
-        notifyItemInserted(position);
     }
 
     public void removeOrderAtPosition(int position) {
-        if (position >= getItemCount()) {
-            Log.e("POSITION_OUT_OF_BOUNDS", "No order at position " + position + "; it is out of bounds.");
-            return;
+        if (position < getItemCount()) {
+            mOrders.remove(position);
+            notifyItemRemoved(position);
         }
-
-        mOrders.remove(position);
-        notifyItemRemoved(position);
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {
