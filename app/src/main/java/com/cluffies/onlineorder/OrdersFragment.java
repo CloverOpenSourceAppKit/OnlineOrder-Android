@@ -24,7 +24,7 @@ import java.util.List;
 public class OrdersFragment extends Fragment {
 
     private static final String ARG_ORDERS = "orders";
-    private LinkedHashMap<String, Order> mOrders;
+    private List<Order> mOrders;
     private OrdersRecyclerViewAdapter ordersRecyclerViewAdapter;
     private OrderFragmentListener mListener;
 
@@ -49,13 +49,11 @@ public class OrdersFragment extends Fragment {
         super.onCreate(savedInstanceState);
 
         if (getArguments() != null) {
-            ArrayList<Order> argOrders = getArguments().<Order>getParcelableArrayList(ARG_ORDERS);
+            mOrders = new ArrayList<Order>(getArguments().<Order>getParcelableArrayList(ARG_ORDERS));
+        }
 
-            mOrders = new LinkedHashMap<String, Order>();
-
-            for (Order order : argOrders) {
-                mOrders.put(order.getId(), new Order(order));
-            }
+        else {
+            mOrders = new ArrayList<Order>();
         }
     }
 
@@ -71,7 +69,7 @@ public class OrdersFragment extends Fragment {
             RecyclerView recyclerView = (RecyclerView) view;
             recyclerView.setLayoutManager(new LinearLayoutManager(context));
 
-            ordersRecyclerViewAdapter = new OrdersRecyclerViewAdapter(new ArrayList<Order>(mOrders.values()), mListener);
+            ordersRecyclerViewAdapter = new OrdersRecyclerViewAdapter(mOrders, mListener);
 
             recyclerView.setAdapter(ordersRecyclerViewAdapter);
         }
@@ -99,7 +97,26 @@ public class OrdersFragment extends Fragment {
 
     public void addOrder(Order order) {
         if (order != null) {
-            ordersRecyclerViewAdapter.addOrder(order);
+            int position = mOrders.size();
+            mOrders.add(new Order(order));
+
+            ordersRecyclerViewAdapter.notifyItemInserted(position);
+        }
+    }
+
+    public void addOrders(List<Order> orders) {
+        if (orders != null && orders.size() > 0) {
+            int position = mOrders.size();
+            mOrders.addAll(new ArrayList<Order>(orders));
+
+            ordersRecyclerViewAdapter.notifyItemRangeInserted(position, orders.size());
+        }
+    }
+
+    public void removeOrderAtPosition(int position) {
+        if (position < mOrders.size()) {
+            mOrders.remove(position);
+            ordersRecyclerViewAdapter.notifyItemRemoved(position);
         }
     }
 
@@ -110,7 +127,7 @@ public class OrdersFragment extends Fragment {
      * activity.
      */
     public interface OrderFragmentListener {
-        void onOrderClick(Order order);
-        void onOrderLongClick(Order order);
+        void onOrderClick(int position, Order order);
+        void onOrderLongClick(int position, Order order);
     }
 }

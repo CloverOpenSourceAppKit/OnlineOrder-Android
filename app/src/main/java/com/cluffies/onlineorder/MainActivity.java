@@ -1,5 +1,10 @@
 package com.cluffies.onlineorder;
 
+import android.accounts.Account;
+import android.content.SharedPreferences;
+import android.os.AsyncTask;
+import android.os.RemoteException;
+import android.preference.PreferenceManager;
 import android.support.design.widget.TabLayout;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -11,19 +16,24 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 
 import android.widget.Toast;
 
-import com.clover.sdk.v3.order.LineItem;
+import com.clover.sdk.util.CloverAccount;
+import com.clover.sdk.v1.BindingException;
+import com.clover.sdk.v1.ClientException;
+import com.clover.sdk.v1.ServiceException;
 import com.clover.sdk.v3.order.Order;
+import com.clover.sdk.v3.order.OrderConnector;
+
+import org.json.JSONArray;
+import org.json.JSONException;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements OrdersFragment.OrderFragmentListener {
 
@@ -52,7 +62,18 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.Or
     private OrdersFragment mCompletedOrdersFragment;
     private OrdersFragment mRejectedOrdersFragment;
 
+    private Account mAccount;
+    private OrderConnector mOrderConnector;
     private OrderReceiver mOrderReceiver;
+
+    private SharedPreferences mPreferences;
+    private SharedPreferences.Editor mEditor;
+
+    private static final String RECEIVED_ORDERS_PREF_KEY = "received_orders";
+    private static final String ACCEPTED_ORDERS_PREF_KEY = "accepted_orders";
+    private static final String COMPLETED_ORDERS_PREF_KEY = "completed_orders";
+    private static final String REJECTED_ORDERS_PREF_KEY = "rejected_orders";
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -95,17 +116,52 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.Or
         mCompletedOrdersFragment = OrdersFragment.newInstance(new ArrayList<Order>(mCompletedOrders.values()));
         mRejectedOrdersFragment = OrdersFragment.newInstance(new ArrayList<Order>(mRejectedOrders.values()));
 
+        mAccount = CloverAccount.getAccount(this);
+
+        if (mAccount == null) {
+            throw new RuntimeException("Cannot get Clover Account");
+        }
+
+        mOrderConnector = new OrderConnector(this, mAccount,null);
+
         mOrderReceiver = new OrderReceiver(this, new OrderReceiver.OrderReceiverListener() {
             @Override
-            public void onOrderReceive(Order order) {
-                if (order != null) {
-                    Snackbar.make(findViewById(R.id.main_content), "Online Order Received: " + order.getId(), Snackbar.LENGTH_SHORT).show();
+            public void onOrderReceive(String orderId) {
+                try {
+                    final Order order = mOrderConnector.getOrder(orderId);
 
-                    mReceivedOrders.put(order.getId(), order);
-                    mReceivedOrdersFragment.addOrder(order);
+                    if (order != null) {
+                        if (!mReceivedOrders.containsKey(order.getId())
+                                && !mAcceptedOrders.containsKey(order.getId())
+                                && !mCompletedOrders.containsKey(order.getId())
+                                && !mRejectedOrders.containsKey(order.getId())) {
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Snackbar.make(findViewById(R.id.main_content), "Online Order Received: "
+                                            + order.getId(), Snackbar.LENGTH_SHORT).show();
+
+                                    mReceivedOrders.put(order.getId(), new Order(order));
+                                    mReceivedOrdersFragment.addOrder(order);
+                                    saveOrders(RECEIVED_ORDERS_PREF_KEY);
+
+                                    applyOrders();
+                                }
+                            });
+                        }
+                    }
+                }
+
+                catch (RemoteException | ClientException | ServiceException | BindingException e) {
+                    e.printStackTrace();
                 }
             }
         });
+
+        mPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        mEditor = mPreferences.edit();
+
+        new LoadOrdersAsyncTask().execute();
     }
 
     @Override
@@ -144,76 +200,216 @@ public class MainActivity extends AppCompatActivity implements OrdersFragment.Or
     }
 
     @Override
-    public void onOrderClick(Order order) {
+    public void onOrderClick(int position, Order order) {
         if (mReceivedOrders.containsKey(order.getId())) {
-            Log.d("ORDER_ACCEPTED", "Accepted Order: " + order.getId());
             Toast.makeText(getBaseContext(), "Accepted Order: " + order.getId(), Toast.LENGTH_SHORT).show();
 
             mReceivedOrders.remove(order.getId());
+            mReceivedOrdersFragment.removeOrderAtPosition(position);
+            saveOrders(RECEIVED_ORDERS_PREF_KEY);
+
             mAcceptedOrders.put(order.getId(), new Order(order));
             mAcceptedOrdersFragment.addOrder(order);
+            saveOrders(ACCEPTED_ORDERS_PREF_KEY);
+
+            applyOrders();
         }
 
         else if (mAcceptedOrders.containsKey(order.getId())) {
-            Log.d("ORDER_COMPLETED", "Completed Order: " + order.getId());
             Toast.makeText(getBaseContext(), "Completed Order: " + order.getId(), Toast.LENGTH_SHORT).show();
 
             mAcceptedOrders.remove(order.getId());
+            mAcceptedOrdersFragment.removeOrderAtPosition(position);
+            saveOrders(ACCEPTED_ORDERS_PREF_KEY);
+
             mCompletedOrders.put(order.getId(), new Order(order));
             mCompletedOrdersFragment.addOrder(order);
+            saveOrders(COMPLETED_ORDERS_PREF_KEY);
+
+            applyOrders();
         }
 
         else if (mCompletedOrders.containsKey(order.getId())) {
-            Log.d("ORDER_UNDO_COMPLETED", "Undo Completed Order: " + order.getId());
             Toast.makeText(getBaseContext(), "Undo Completed Order: " + order.getId(), Toast.LENGTH_SHORT).show();
 
             mCompletedOrders.remove(order.getId());
+            mCompletedOrdersFragment.removeOrderAtPosition(position);
+            saveOrders(COMPLETED_ORDERS_PREF_KEY);
+
             mAcceptedOrders.put(order.getId(), new Order(order));
             mAcceptedOrdersFragment.addOrder(order);
+            saveOrders(ACCEPTED_ORDERS_PREF_KEY);
+
+            applyOrders();
         }
 
         else if (mRejectedOrders.containsKey(order.getId())) {
-            Log.d("ORDER_UNDO_REJECTED", "Undo Rejected Order: " + order.getId());
             Toast.makeText(getBaseContext(), "Undo Rejected Order: " + order.getId(), Toast.LENGTH_SHORT).show();
 
             mRejectedOrders.remove(order.getId());
+            mRejectedOrdersFragment.removeOrderAtPosition(position);
+            saveOrders(REJECTED_ORDERS_PREF_KEY);
+
             mReceivedOrders.put(order.getId(), new Order(order));
             mReceivedOrdersFragment.addOrder(order);
+            saveOrders(RECEIVED_ORDERS_PREF_KEY);
+
+            applyOrders();
         }
     }
 
     @Override
-    public void onOrderLongClick(Order order) {
+    public void onOrderLongClick(int position, Order order) {
         if (mReceivedOrders.containsKey(order.getId())) {
-            Log.d("ORDER_REJECTED", "Rejected Order: " + order.getId());
             Toast.makeText(getBaseContext(), "Rejected Order: " + order.getId(), Toast.LENGTH_SHORT).show();
 
             mReceivedOrders.remove(order.getId());
+            mReceivedOrdersFragment.removeOrderAtPosition(position);
+            saveOrders(RECEIVED_ORDERS_PREF_KEY);
+
             mRejectedOrders.put(order.getId(), new Order(order));
             mRejectedOrdersFragment.addOrder(order);
+            saveOrders(REJECTED_ORDERS_PREF_KEY);
+
+            applyOrders();
         }
 
         else if (mAcceptedOrders.containsKey(order.getId())) {
-            Log.d("ORDER_UNDO_ACCEPTED", "Undo Accepted Order: " + order.getId());
             Toast.makeText(getBaseContext(), "Undo Accepted Order: " + order.getId(), Toast.LENGTH_SHORT).show();
 
             mAcceptedOrders.remove(order.getId());
+            mAcceptedOrdersFragment.removeOrderAtPosition(position);
+            saveOrders(ACCEPTED_ORDERS_PREF_KEY);
+
             mReceivedOrders.put(order.getId(), new Order(order));
             mReceivedOrdersFragment.addOrder(order);
+            saveOrders(RECEIVED_ORDERS_PREF_KEY);
+
+            applyOrders();
         }
 
         else if (mCompletedOrders.containsKey(order.getId())) {
-            Log.d("COMPLETED_ORDER_DELETED", "Deleted Completed Order: " + order.getId());
             Toast.makeText(getBaseContext(), "Deleted Completed Order: " + order.getId(), Toast.LENGTH_SHORT).show();
 
             mCompletedOrders.remove(order.getId());
+            mCompletedOrdersFragment.removeOrderAtPosition(position);
+            saveOrders(COMPLETED_ORDERS_PREF_KEY);
+
+            applyOrders();
         }
 
         else if (mRejectedOrders.containsKey(order.getId())) {
-            Log.d("REJECTED_ORDER_DELETED", "Deleted Rejected Order: " + order.getId());
             Toast.makeText(getBaseContext(), "Deleted Rejected Order: " + order.getId(), Toast.LENGTH_SHORT).show();
 
             mRejectedOrders.remove(order.getId());
+            mRejectedOrdersFragment.removeOrderAtPosition(position);
+            saveOrders(REJECTED_ORDERS_PREF_KEY);
+
+            applyOrders();
+        }
+    }
+
+    /**
+     * Saves the list of orders specified by ordersPrefKey to SharedPreferences, but does not apply
+     * them to memory.
+     * @param ordersPrefKey The key to specify which list of orders to save.
+     */
+    private void saveOrders(String ordersPrefKey) {
+        if (ordersPrefKey.equals(RECEIVED_ORDERS_PREF_KEY)) {
+            String receivedOrders = jsonifyOrders(mReceivedOrders);
+            mEditor.putString(RECEIVED_ORDERS_PREF_KEY, receivedOrders);
+        }
+
+        else if (ordersPrefKey.equals(ACCEPTED_ORDERS_PREF_KEY)) {
+            String acceptedOrders = jsonifyOrders(mAcceptedOrders);
+            mEditor.putString(ACCEPTED_ORDERS_PREF_KEY, acceptedOrders);
+        }
+
+        else if (ordersPrefKey.equals(COMPLETED_ORDERS_PREF_KEY)) {
+            String completedOrders = jsonifyOrders(mCompletedOrders);
+            mEditor.putString(COMPLETED_ORDERS_PREF_KEY, completedOrders);
+        }
+
+        else if (ordersPrefKey.equals(REJECTED_ORDERS_PREF_KEY)) {
+            String rejectedOrders = jsonifyOrders(mRejectedOrders);
+            mEditor.putString(REJECTED_ORDERS_PREF_KEY, rejectedOrders);
+        }
+    }
+
+    /**
+     * Applies the orders saved in SharedPreferences to memory.
+     */
+    private void applyOrders() {
+        mEditor.apply();
+    }
+
+    private String jsonifyOrders(LinkedHashMap<String, Order> orders) {
+        JSONArray jsonOrders = new JSONArray();
+
+        for (Order order : orders.values()) {
+            jsonOrders.put(order.getId());
+        }
+
+        return jsonOrders.toString();
+    }
+
+    private LinkedHashMap<String, Order> unjsonifyOrders(String jsonOrders) {
+        LinkedHashMap<String, Order> orders = new LinkedHashMap<String, Order>();
+
+        try {
+            JSONArray orderIds = new JSONArray(jsonOrders);
+
+            for (int i = 0; i < orderIds.length(); i++) {
+                Order order = mOrderConnector.getOrder(orderIds.getString(i));
+
+                if (order != null) {
+                    orders.put(order.getId(), order);
+                }
+            }
+        }
+
+        catch (JSONException | RemoteException | ClientException | ServiceException | BindingException e) {
+            e.printStackTrace();
+        }
+
+        return orders;
+    }
+
+    private class LoadOrdersAsyncTask extends AsyncTask<Void, Void, Void> {
+        @Override
+        protected Void doInBackground(Void... params) {
+            String receivedOrders = mPreferences.getString(RECEIVED_ORDERS_PREF_KEY, null);
+            String acceptedOrders = mPreferences.getString(ACCEPTED_ORDERS_PREF_KEY, null);
+            String completedOrders = mPreferences.getString(COMPLETED_ORDERS_PREF_KEY, null);
+            String rejectedOrders = mPreferences.getString(REJECTED_ORDERS_PREF_KEY, null);
+
+            if (receivedOrders != null) {
+                mReceivedOrders = unjsonifyOrders(receivedOrders);
+            }
+
+            if (acceptedOrders != null) {
+                mAcceptedOrders = unjsonifyOrders(acceptedOrders);
+            }
+
+            if (completedOrders != null) {
+                mCompletedOrders = unjsonifyOrders(completedOrders);
+            }
+
+            if (rejectedOrders != null) {
+                mRejectedOrders = unjsonifyOrders(rejectedOrders);
+            }
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    mReceivedOrdersFragment.addOrders(new ArrayList<Order>(mReceivedOrders.values()));
+                    mAcceptedOrdersFragment.addOrders(new ArrayList<Order>(mAcceptedOrders.values()));
+                    mCompletedOrdersFragment.addOrders(new ArrayList<Order>(mCompletedOrders.values()));
+                    mRejectedOrdersFragment.addOrders(new ArrayList<Order>(mRejectedOrders.values()));
+                }
+            });
+
+            return null;
         }
     }
 

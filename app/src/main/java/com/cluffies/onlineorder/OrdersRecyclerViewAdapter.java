@@ -24,12 +24,7 @@ public class OrdersRecyclerViewAdapter extends RecyclerView.Adapter<OrdersRecycl
     private final OrderFragmentListener mListener;
 
     public OrdersRecyclerViewAdapter(List<Order> orders, OrderFragmentListener listener) {
-        mOrders = new ArrayList<Order>();
-
-        for (Order order : orders) {
-            mOrders.add(new Order(order));
-        }
-
+        mOrders = orders;
         mListener = listener;
     }
 
@@ -65,8 +60,7 @@ public class OrdersRecyclerViewAdapter extends RecyclerView.Adapter<OrdersRecycl
                 if (mListener != null) {
                     // Notify the active callbacks interface (the activity, if the
                     // fragment is attached to one) that an item has been selected.
-                    mListener.onOrderClick(holder.mOrder);
-                    removeOrderAtPosition(holder.getAdapterPosition());
+                    mListener.onOrderClick(position, holder.mOrder);
                 }
             }
         });
@@ -77,8 +71,7 @@ public class OrdersRecyclerViewAdapter extends RecyclerView.Adapter<OrdersRecycl
                 if (mListener != null) {
                     // Notify the active callbacks interface (the activity, if the
                     // fragment is attached to one) that an item has been selected.
-                    mListener.onOrderLongClick(holder.mOrder);
-                    removeOrderAtPosition(holder.getAdapterPosition());
+                    mListener.onOrderLongClick(position, holder.mOrder);
                 }
 
                 return true;
@@ -89,22 +82,6 @@ public class OrdersRecyclerViewAdapter extends RecyclerView.Adapter<OrdersRecycl
     @Override
     public int getItemCount() {
         return mOrders.size();
-    }
-
-    public void addOrder(Order order) {
-        if (order != null) {
-            int position = getItemCount();
-            mOrders.add(new Order(order));
-
-            notifyItemInserted(position);
-        }
-    }
-
-    public void removeOrderAtPosition(int position) {
-        if (position < getItemCount()) {
-            mOrders.remove(position);
-            notifyItemRemoved(position);
-        }
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {

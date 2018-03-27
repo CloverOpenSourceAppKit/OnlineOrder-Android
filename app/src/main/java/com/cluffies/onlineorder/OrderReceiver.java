@@ -1,48 +1,29 @@
 package com.cluffies.onlineorder;
 
-import android.accounts.Account;
 import android.content.Context;
 import android.os.AsyncTask;
-import android.os.RemoteException;
 import android.util.Log;
 
-import com.clover.sdk.util.CloverAccount;
-import com.clover.sdk.v1.BindingException;
-import com.clover.sdk.v1.ClientException;
-import com.clover.sdk.v1.ServiceException;
 import com.clover.sdk.v1.app.AppNotificationReceiver;
 import com.clover.sdk.v1.app.AppNotification;
-import com.clover.sdk.v3.order.Order;
-import com.clover.sdk.v3.order.OrderConnector;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 public class OrderReceiver extends AppNotificationReceiver {
     private static final String ONLINE_ORDER_EVENT = "online_order";
-    private Account mAccount;
-    private OrderConnector mOrderConnector;
     private OrderReceiverListener mListener;
-
-    public OrderReceiver() {
-    }
 
     public OrderReceiver(Context context, OrderReceiverListener listener) {
         super.register(context);
-
-        mAccount = CloverAccount.getAccount(context);
-
-        if (mAccount == null) {
-            throw new RuntimeException("Cannot get Clover Account");
-        }
-
-        mOrderConnector = new OrderConnector(context, mAccount,null);
 
         mListener = listener;
     }
 
     @Override
     public void onReceive(Context context, AppNotification notification) {
+        Log.d("NOTIFICATION", "Notification Received: " + notification.appEvent + " " + notification.payload);
+
         if (notification.appEvent.equals(ONLINE_ORDER_EVENT)) {
             new AsyncTask<AppNotification, Void, Void>() {
                 @Override
@@ -53,14 +34,10 @@ public class OrderReceiver extends AppNotificationReceiver {
                         JSONObject orderData = data.getJSONObject("order");
                         String orderId = orderData.getString("id");
 
-                        Order order = mOrderConnector.getOrder(orderId);
-
-                        if (order != null) {
-                            mListener.onOrderReceive(order);
-                        }
+                        mListener.onOrderReceive(orderId);
                     }
 
-                    catch (JSONException | RemoteException | ClientException | ServiceException | BindingException e) {
+                    catch (JSONException e) {
                         e.printStackTrace();
                     }
 
@@ -75,6 +52,6 @@ public class OrderReceiver extends AppNotificationReceiver {
      * OrderReceiver to be notified when an order is received.
      */
     public interface OrderReceiverListener {
-        void onOrderReceive(Order order);
+        void onOrderReceive(String orderId);
     }
 }
